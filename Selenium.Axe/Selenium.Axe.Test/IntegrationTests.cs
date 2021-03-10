@@ -86,7 +86,6 @@ namespace Selenium.Axe.Test
             LoadSimpleTestPage();
 
             _wait.Until(drv => drv.FindElement(By.TagName(mainElementSelector)));
-
             _webDriver.CreateAxeHtmlReport(path);
 
             ValidateReport(path, 4, 28, 0, 63);
@@ -102,7 +101,6 @@ namespace Selenium.Axe.Test
             LoadSimpleTestPage();
 
             _wait.Until(drv => drv.FindElement(By.TagName(mainElementSelector)));
-
             _webDriver.CreateAxeHtmlReport(path, ReportTypes.Violations);
 
             ValidateReport(path, 4, 0);
@@ -244,55 +242,36 @@ namespace Selenium.Axe.Test
             var doc = new HtmlDocument();
             doc.LoadHtml(text);
 
-            // Check violations 
-            string xpath = ".//*[@id=\"ViolationsSection\"]//*[contains(concat(\" \",normalize-space(@class),\" \"),\"htmlTable\")]";
-            ValidateElementCount(doc, violationCount, xpath, ResultType.Violations);
-
-            // Check passes
-            xpath = ".//*[@id=\"PassesSection\"]//*[contains(concat(\" \",normalize-space(@class),\" \"),\"htmlTable\")]";
-            ValidateElementCount(doc, passCount, xpath, ResultType.Passes);
-
-            // Check inapplicables
-            xpath = ".//*[@id=\"InapplicableSection\"]//*[contains(concat(\" \",normalize-space(@class),\" \"),\"findings\")]";
-            ValidateElementCount(doc, inapplicableCount, xpath, ResultType.Inapplicable);
-
-            // Check incompletes
-            xpath = ".//*[@id=\"IncompleteSection\"]//*[contains(concat(\" \",normalize-space(@class),\" \"),\"htmlTable\")]";
-            ValidateElementCount(doc, incompleteCount, xpath, ResultType.Incomplete);
+            // Check the element counts for each result type
+            ValidateElementCount(doc, violationCount, ResultType.Violations);
+            ValidateElementCount(doc, passCount, ResultType.Passes);
+            ValidateElementCount(doc, inapplicableCount, ResultType.Inapplicable);
+            ValidateElementCount(doc, incompleteCount, ResultType.Incomplete);
 
             // Check header data
             Assert.IsTrue(text.Contains("Using: axe-core"), "Expected to find 'Using: axe-core'");
 
-            if (!violationCount.Equals(0))
-            {
-                ValidateResultCount(text, violationCount, ResultType.Violations);
-            }
-
-            if (!passCount.Equals(0))
-            {
-                ValidateResultCount(text, passCount, ResultType.Passes);
-            }
-
-            if (!inapplicableCount.Equals(0))
-            {
-                ValidateResultCount(text, inapplicableCount, ResultType.Inapplicable);
-            }
-
-            if (!incompleteCount.Equals(0))
-            {
-                ValidateResultCount(text, incompleteCount, ResultType.Incomplete);
-            }
+            // Check the result count for each result type
+            ValidateResultCount(text, violationCount, ResultType.Violations);
+            ValidateResultCount(text, passCount, ResultType.Passes);
+            ValidateResultCount(text, inapplicableCount, ResultType.Inapplicable);
+            ValidateResultCount(text, incompleteCount, ResultType.Incomplete);
         }
 
-        private void ValidateElementCount(HtmlDocument doc, int count, string xpath, ResultType resultType)
+        private void ValidateElementCount(HtmlDocument doc, int count, ResultType resultType)
         {
+            string ending = resultType.Equals(ResultType.Inapplicable) ? "\"findings\"" : "\"htmlTable\"";
+            string xpath = $".//*[@id=\"{resultType}Section\"]//*[contains(concat(\" \",normalize-space(@class),\" \"),{ending})]";
             HtmlNodeCollection liNodes = doc.DocumentNode.SelectNodes(xpath) ?? new HtmlNodeCollection(null);
             Assert.AreEqual(liNodes.Count, count, $"Expected {count} {resultType}");
         }
 
         private void ValidateResultCount(string text, int count, ResultType resultType)
         {
-            Assert.IsTrue(text.Contains($"{resultType}: {count}"), $"Expected to find '{resultType}: {count}'");
+            if (!count.Equals(0))
+            {
+                Assert.IsTrue(text.Contains($"{resultType}: {count}"), $"Expected to find '{resultType}: {count}'");
+            }
         }
 
         private void ValidateResultNotWritten(string path, ReportTypes ReportType)

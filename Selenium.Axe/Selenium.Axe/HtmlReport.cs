@@ -3,6 +3,9 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Internal;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Drawing;
+using System.IO;
 using System.Text;
 using System.Web;
 
@@ -187,16 +190,19 @@ namespace Selenium.Axe
             if (violationCount > 0 && requestedResults.HasFlag(ReportTypes.Violations))
             {
                 GetReadableAxeResults(results.Violations, ResultType.Violations.ToString(), doc, resultsFlex);
+                SetImages(ResultType.Violations.ToString(), doc, context);
             }
 
             if (incompleteCount > 0 && requestedResults.HasFlag(ReportTypes.Incomplete))
             {
                 GetReadableAxeResults(results.Incomplete, ResultType.Incomplete.ToString(), doc, resultsFlex);
+                SetImages(ResultType.Incomplete.ToString(), doc, context);
             }
 
             if (passCount > 0 && requestedResults.HasFlag(ReportTypes.Passes))
             {
                 GetReadableAxeResults(results.Passes, ResultType.Passes.ToString(), doc, resultsFlex);
+                SetImages(ResultType.Passes.ToString(), doc, context);
             }
 
             if (inapplicableCount > 0 && requestedResults.HasFlag(ReportTypes.Inapplicable))
@@ -223,8 +229,17 @@ namespace Selenium.Axe
             doc.Save(destination, Encoding.UTF8);
         }
 
-        private static string GetDataImageString(ISearchContext context)
+        private static string GetDataImageString(ISearchContext context, IWebElement element = null)
         {
+            if (element != null)
+            {
+                Screenshot sc = ((ITakesScreenshot)context).GetScreenshot();
+                Bitmap screen = new Bitmap(new MemoryStream(sc.AsByteArray));
+                Bitmap bitmap = screen.Clone(new Rectangle(element.Location, element.Size), screen.PixelFormat);
+                byte[] bytes = (byte[])TypeDescriptor.GetConverter(bitmap).ConvertTo(bitmap, typeof(byte[]));
+                return $"data:image/png;base64,{Convert.ToBase64String(bytes)}');";
+            }
+
             ITakesScreenshot newScreen = (ITakesScreenshot)context;
             return $"data:image/png;base64,{Convert.ToBase64String(newScreen.GetScreenshot().AsByteArray)}');";
         }
@@ -236,10 +251,11 @@ namespace Selenium.Axe
             css.AppendLine($"content: url('{GetDataImageString(context)}; border: 1px solid black;margin-left:1em;margin-right:1em;width:auto;max-height:150px;");
             css.AppendLine(@"}
                 .thumbnail:hover{border:2px solid black;}
-                .wrap .wrapTwo .wrapThree{margin:2px;max-width:70vw;}
+                .wrap .wrapTwo {margin:2px;max-width:70vw;}
                 .wrapOne {margin-left:1em;overflow-wrap:anywhere;}
                 .wrapTwo {margin-left:2em;overflow-wrap:anywhere;}
-                .wrapThree {margin-left:3em;overflow-wrap:anywhere;}
+                .wrapThree {margin-left:3em;transition: transform .2s;position: absolute;right: 25%;margin-top: -5.5%}
+                .wrapThree:hover {transform: scale(1.5);}
                 .emOne {margin-left:1em;margin-right:1em;overflow-wrap:anywhere;}
                 .emTwo {margin-left:2em;overflow-wrap:anywhere;}
                 .emThree {margin-left:3em;overflow-wrap:anywhere;}
@@ -425,6 +441,68 @@ namespace Selenium.Axe
 
                     htmlAndSelector.InnerHtml = content.ToString();
                     htmlAndSelectorWrapper.AppendChild(htmlAndSelector);
+                }
+            }
+        }
+
+        // TODO: see if foreach can work later on
+        private static void SetImages2(string resultType, HtmlDocument doc, ISearchContext context)
+        {
+            //var sexction = doc.DocumentNode.SelectNodes($"//*[@id=\"{resultType}Section\"]/div/div/div/p[2]");
+            var section = doc.DocumentNode.SelectNodes($"//*[@id=\"{resultType}Section\"]/div");
+            int count = 1;
+
+            foreach (HtmlNode finding in section)
+            {
+                var htmlTable = finding.SelectNodes($"/div[contains(@class, 'htmlTable')]");
+
+                foreach (HtmlNode table in htmlTable)
+                {
+                    var wrapTwo = table.SelectSingleNode($"//div/p[2]");
+                    var selectorText = HttpUtility.HtmlDecode(wrapTwo.InnerText).Trim();
+
+                    string imageString = GetDataImageString(context, context.FindElement(By.CssSelector(selectorText)));
+
+                    var element = doc.CreateElement("div");
+                    element.SetAttributeValue("class", "wrapThree");
+
+                    var image = doc.CreateElement("img");
+                    image.SetAttributeValue("src", imageString);
+                    image.SetAttributeValue("alt", resultType + "Element" + count);
+                    element.AppendChild(image);
+
+                    var emThree = table.SelectSingleNode($"/div");
+                    emThree.AppendChild(element);
+                }
+            }
+        }
+
+        private static void SetImages(string resultType, HtmlDocument doc, ISearchContext context)
+        {
+            var findings = doc.DocumentNode.SelectNodes($"//*[@id=\"{resultType}Section\"]/div");
+            var count = 1;
+
+            for (int i = 1; i <= findings.Count; i++)
+            {
+                var htmlTable = doc.DocumentNode.SelectNodes($"//*[@id=\"{resultType}Section\"]/div[{i}]/div[contains(@class, 'htmlTable')]");
+
+                for (int j = 2; j <= htmlTable.Count + 1; j++)
+                {
+                    var nodeCollection = doc.DocumentNode.SelectSingleNode($"//*[@id=\"{resultType}Section\"]/div[{i}]/div[{j}]/div/p[2]");
+                    var selectorText = HttpUtility.HtmlDecode(nodeCollection.InnerText).Trim();
+
+                    string imageString = GetDataImageString(context, context.FindElement(By.CssSelector(selectorText)));
+
+                    var element = doc.CreateElement("div");
+                    element.SetAttributeValue("class", "wrapThree");
+
+                    var image = doc.CreateElement("img");
+                    image.SetAttributeValue("src", imageString);
+                    image.SetAttributeValue("alt", resultType + "Element" + count++);
+                    element.AppendChild(image);
+
+                    var emThree = doc.DocumentNode.SelectSingleNode($"//*[@id=\"{resultType}Section\"]/div[{i}]/div[{j}]/div");
+                    emThree.AppendChild(element);
                 }
             }
         }
