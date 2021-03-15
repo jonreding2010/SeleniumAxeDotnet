@@ -445,51 +445,19 @@ namespace Selenium.Axe
             }
         }
 
-        // TODO: see if foreach can work later on
-        private static void SetImages2(string resultType, HtmlDocument doc, ISearchContext context)
+        private static void SetImages(string resultType, HtmlDocument doc, ISearchContext context)
         {
-            //var sexction = doc.DocumentNode.SelectNodes($"//*[@id=\"{resultType}Section\"]/div/div/div/p[2]");
             var section = doc.DocumentNode.SelectNodes($"//*[@id=\"{resultType}Section\"]/div");
             int count = 1;
 
             foreach (HtmlNode finding in section)
             {
-                var htmlTable = finding.SelectNodes($"/div[contains(@class, 'htmlTable')]");
+                var htmlTable = finding.SelectNodes($"div[contains(@class, 'htmlTable')]");
 
                 foreach (HtmlNode table in htmlTable)
                 {
-                    var wrapTwo = table.SelectSingleNode($"//div/p[2]");
+                    var wrapTwo = table.SelectSingleNode($"div/p[2]");
                     var selectorText = HttpUtility.HtmlDecode(wrapTwo.InnerText).Trim();
-
-                    string imageString = GetDataImageString(context, context.FindElement(By.CssSelector(selectorText)));
-
-                    var element = doc.CreateElement("div");
-                    element.SetAttributeValue("class", "wrapThree");
-
-                    var image = doc.CreateElement("img");
-                    image.SetAttributeValue("src", imageString);
-                    image.SetAttributeValue("alt", resultType + "Element" + count);
-                    element.AppendChild(image);
-
-                    var emThree = table.SelectSingleNode($"/div");
-                    emThree.AppendChild(element);
-                }
-            }
-        }
-
-        private static void SetImages(string resultType, HtmlDocument doc, ISearchContext context)
-        {
-            var findings = doc.DocumentNode.SelectNodes($"//*[@id=\"{resultType}Section\"]/div");
-            var count = 1;
-
-            for (int i = 1; i <= findings.Count; i++)
-            {
-                var htmlTable = doc.DocumentNode.SelectNodes($"//*[@id=\"{resultType}Section\"]/div[{i}]/div[contains(@class, 'htmlTable')]");
-
-                for (int j = 2; j <= htmlTable.Count + 1; j++)
-                {
-                    var nodeCollection = doc.DocumentNode.SelectSingleNode($"//*[@id=\"{resultType}Section\"]/div[{i}]/div[{j}]/div/p[2]");
-                    var selectorText = HttpUtility.HtmlDecode(nodeCollection.InnerText).Trim();
 
                     string imageString = GetDataImageString(context, context.FindElement(By.CssSelector(selectorText)));
 
@@ -501,7 +469,7 @@ namespace Selenium.Axe
                     image.SetAttributeValue("alt", resultType + "Element" + count++);
                     element.AppendChild(image);
 
-                    var emThree = doc.DocumentNode.SelectSingleNode($"//*[@id=\"{resultType}Section\"]/div[{i}]/div[{j}]/div");
+                    var emThree = table.SelectSingleNode($"div[contains(@class, 'emThree')]");
                     emThree.AppendChild(element);
                 }
             }
