@@ -93,7 +93,7 @@ namespace Selenium.Axe.Test
 
         [TestMethod]
         [DataRow("Chrome")]
-        [DataRow("FireFox")]
+        //[DataRow("FireFox")]
         public void ReportFullPageViolationsOnly(string browser)
         {
             string path = CreateReportPath();

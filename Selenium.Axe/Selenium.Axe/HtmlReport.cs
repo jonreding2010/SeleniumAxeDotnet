@@ -186,7 +186,6 @@ namespace Selenium.Axe
                 contentArea.AppendChild(errorContent);
             }
 
-
             if (violationCount > 0 && requestedResults.HasFlag(ReportTypes.Violations))
             {
                 GetReadableAxeResults(results.Violations, ResultType.Violations.ToString(), doc, resultsFlex);
@@ -196,7 +195,6 @@ namespace Selenium.Axe
             if (incompleteCount > 0 && requestedResults.HasFlag(ReportTypes.Incomplete))
             {
                 GetReadableAxeResults(results.Incomplete, ResultType.Incomplete.ToString(), doc, resultsFlex);
-                SetImages(ResultType.Incomplete.ToString(), doc, context);
             }
 
             if (passCount > 0 && requestedResults.HasFlag(ReportTypes.Passes))
@@ -210,7 +208,6 @@ namespace Selenium.Axe
                 GetReadableAxeResults(results.Inapplicable, ResultType.Inapplicable.ToString(), doc, resultsFlex);
             }
            
-
             var modal = doc.CreateElement("div");
             modal.SetAttributeValue("id", "modal");
             contentArea.AppendChild(modal);
@@ -231,30 +228,39 @@ namespace Selenium.Axe
 
         private static string GetDataImageString(ISearchContext context, IWebElement element = null)
         {
+            ITakesScreenshot newScreen = (ITakesScreenshot)context;
+
             if (element != null)
             {
-                Screenshot sc = ((ITakesScreenshot)context).GetScreenshot();
+                Screenshot sc = newScreen.GetScreenshot();
                 Bitmap screen = new Bitmap(new MemoryStream(sc.AsByteArray));
                 Bitmap bitmap = screen.Clone(new Rectangle(element.Location, element.Size), screen.PixelFormat);
                 byte[] bytes = (byte[])TypeDescriptor.GetConverter(bitmap).ConvertTo(bitmap, typeof(byte[]));
                 return $"data:image/png;base64,{Convert.ToBase64String(bytes)}');";
             }
-
-            ITakesScreenshot newScreen = (ITakesScreenshot)context;
+            
             return $"data:image/png;base64,{Convert.ToBase64String(newScreen.GetScreenshot().AsByteArray)}');";
+        }
+
+        private static string SetCssContent(ISearchContext context, IWebElement element = null, string cssName = "thumbnail")
+        {
+            var css = new StringBuilder();
+            css.AppendLine(@".cssName{");
+            css.AppendLine($"content: url('{GetDataImageString(context, element)};");
+            return css.ToString().Replace("cssName", cssName);
         }
 
         private static string GetCss(ISearchContext context)
         {
             var css = new StringBuilder();
-            css.AppendLine(@".thumbnail{");
-            css.AppendLine($"content: url('{GetDataImageString(context)}; border: 1px solid black;margin-left:1em;margin-right:1em;width:auto;max-height:150px;");
+            css.AppendLine(SetCssContent(context));
+            css.AppendLine("border: 1px solid black;margin-left:1em;margin-right:1em;width:auto;max-height:150px;");
             css.AppendLine(@"}
                 .thumbnail:hover{border:2px solid black;}
                 .wrap .wrapTwo {margin:2px;max-width:70vw;}
                 .wrapOne {margin-left:1em;overflow-wrap:anywhere;}
                 .wrapTwo {margin-left:2em;overflow-wrap:anywhere;}
-                .wrapThree {margin-left:3em;transition: transform .2s;position: absolute;right: 25%;margin-top: -5.5%}
+                .wrapThree {margin-left:3em;overflow-wrap:anywhere;transition: transform .2s;position: absolute;right: 25%;}
                 .wrapThree:hover {transform: scale(1.5);}
                 .emOne {margin-left:1em;margin-right:1em;overflow-wrap:anywhere;}
                 .emTwo {margin-left:2em;overflow-wrap:anywhere;}
